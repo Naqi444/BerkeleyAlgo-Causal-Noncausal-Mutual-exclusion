@@ -1,0 +1,121 @@
+Initial Steps:
+
+""" Importing libraries """
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+training = pd.read_csv('./cybersecurity_training.csv', delimiter="|",header=[0])
+
+training.head()		//Prints the first few columns of the dataset
+
+training.info()		//Prints the object types of each column
+
+
+for column in training.columns:				//prints all the columns with null data
+	if training[column].isna().sum() > 0:
+		print(column, training[column].isna().sum())
+
+
+def fillmissing (dataset):				//defining a function to fill the missing column values with 0
+	for column in dataset.columns:
+		if dataset[column].isna().sum() > 0:
+			dataset[column].fillna(0,inplace = True)
+	return dataset
+
+
+training = fillmissing(training)
+training.columns
+
+
+to_drop_columns = ['client_code, 'alerts_ids']
+categorical_string_columns = ['categoryname', 'ipcategory_name', 'ipcategory_scope', 'parent_category', 'grandparent_category', 'weekday']
+categorical_numeric_columns = ['overallseverity', 'start_hour', 'start_minute', 'start_second', 'score', 'alerttype_cd', 'direction_cd', 'eventname_cd', 'isiptrusted', 'dstipcategory_dominate', 'srcipcategory_dominate', 'dstportcategory_dominate', 'srcportcategory_dominate', 'p6', 'p5m', 'p5w', 'p5d', 'p8m', 'p8w', 'p8d']
+binary_columns = [ 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'n10']
+
+# split IPs to prefix
+training['ip_prefix'] = training['ip'].apply(lambda x: ".".join(x.split('.')[:1]))
+#print training['ip_prefix']
+vc = training['ip_prefix'].value_counts()
+#print vc
+training['ip_prefix_aggreg'] = training['ip_prefix'].apply(lambda x: x if vc[x]>100 else "other")
+training['ip_prefix_aggreg'].value_counts().size
+
+# to drop string cloumns
+string_columns =  ['alert_ids', 'client_code', 'categoryname', 'ip', 'ipcategory_name', 'ipcategory_scope','parent_category','grandparent_category', 
+                   'weekday', 'dstipcategory_dominate', 'srcipcategory_dominate', 'ip_prefix', 'ip_prefix_aggreg']
+no_strings_training = training.drop(string_columns, axis=1)
+print no_strings_training
+file_name = "no_strings_train.pkl"
+no_strings_training.to_pickle(file_name)
+
+
+#Defining encode function in order to create dummy variables for categorical columns and for concatenating the new columns with the dataframe
+
+def encode(original, concate, list_of_columns):
+    for column in list_of_columns:
+        dummies = pd.get_dummies(columns=[column], data=original[column], prefix=column)
+        #print dummies
+        concate = pd.concat([concate, dummies], axis=1)
+        #print concate
+    return concate
+
+
+columns_to_encode = ['categoryname', 'weekday','ipcategory_name', 'ipcategory_scope','grandparent_category', 
+                     'dstipcategory_dominate', 'srcipcategory_dominate', 'ip_prefix_aggreg']
+encoded_category = encode(training, no_strings_training, columns_to_encode)
+for column in columns_to_encode:
+    if column in encoded_category.columns:
+        encoded = encoded.drop(column, axis=1)
+print("After categorical encoding: ", len(encoded_category.columns))
+
+# numerical columns
+columns_to_encode = categorical_numeric_columns
+encoded = encode(training, encoded_category, columns_to_encode)
+for column in columns_to_encode:
+    if column in encoded.columns:
+        encoded = encoded.drop(column, axis=1)
+print encoded
+print("After numerical encoding: " ,len(encoded.columns))
+
+missing_columns =  ['n4_1.0', 'n3_0.0', 'n9_0.0', 'alerttype_cd_11', 'dstipcategory_dominate_LINK-LOCAL', 'n5_1.0', 'untrustscore_8', 'n2_0.0', 'n5_0.0', 'ip_prefix_aggreg_SC', 'n10_0.0', 'n3_1.0', 'n4_0.0', 'reportingdevice_cd_144', 'devicevendor_cd_8', 'alerttype_cd_12', 'p6_11', 'reportingdevice_cd_37', 'reportingdevice_cd_31', 'n6_0.0', 'eventname_cd_14', 'n2_1.0', 'ipcategory_name_BENCH', 'ip_prefix_aggreg_ON', 'untrustscore_9', 'srcipcategory_dominate_BENCH', 'n8_0.0', 'p6_12', 'ip_prefix_aggreg_DK', 'ip_prefix_aggreg_BW', 'n7_0.0', 'n1_1.0', 'devicetype_cd_6', 'direction_cd_6', 'n6_1.0', 'n9_1.0', 'ip_prefix_aggreg_MW', 'reportingdevice_cd_28', 'n1_0.0', 'devicetype_cd_7']
+for column in missing_columns:
+    if column != 'notified':
+        encoded[column] = 0
+len(encoded.columns)
+
+#Pickling the encoded file and saving it in the file "encoded_train.pkl"
+file_name = "encoded_train.pkl"
+encoded.to_pickle(file_name)
+
+#using sklearn function standardscaler to define the standardize function
+
+from sklearn.preprocessing import StandardScaler
+
+def standartize(dataset, target_variable):
+    
+    scaler = StandardScaler()
+    scaler.fit(dataset.drop(target_variable,axis=1))
+    scaled_features = scaler.transform(dataset.drop(target_variable,axis=1))
+    df_scaled_features = pd.DataFrame(scaled_features,columns=dataset.drop(target_variable,axis=1).columns)
+    df_scaled = pd.concat([dataset[target_variable], df_scaled_features], axis=1)
+    return df_scaled
+
+no_strings_training_scaled = standartize(no_strings_training,target_variable='notified')
+print no_strings_training_scaled
+file_name = "no_strings_normalized_train.pkl"
+no_strings_training_scaled.to_pickle(file_name)
+
+encoded_scaled = standartize(encoded,target_variable='notified')
+print encoded_scaled
+file_name = "encoded_normalized_train.pkl"
+encoded_scaled.to_pickle(file_name)
+
+
+
+
+
+
+

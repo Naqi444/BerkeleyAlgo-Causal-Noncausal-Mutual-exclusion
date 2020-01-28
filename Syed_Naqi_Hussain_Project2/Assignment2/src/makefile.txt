@@ -1,0 +1,14 @@
+compile:
+	g++ -o causal causal.cpp -lpthread
+
+runprocess1:
+	./causal 6666 input1.txt
+
+runprocess2:
+	./causal 7777 input2.txt
+
+runprocess3:
+	./causal 8888 input3.txt
+
+clean:
+	rm causal

@@ -1,0 +1,19 @@
+compile :
+	gcc -o berkeley berkeley.c
+	
+runclient1 :
+	./berkeley 7002 2
+
+runclient2 :
+	./berkeley 7003 3
+
+runclient3 :
+	./berkeley 7004 4
+
+rundaemon:
+	./berkeley 7001 1
+ 	
+clean:
+	rm berkeley
+	
+

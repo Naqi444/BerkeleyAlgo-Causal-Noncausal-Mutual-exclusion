@@ -1,0 +1,6 @@
+compile:
+  g++ myserver.cpp -o server -lpthread
+  g++ myslient.cpp -o client -lpthread
+
+clean:
+  rm server client
